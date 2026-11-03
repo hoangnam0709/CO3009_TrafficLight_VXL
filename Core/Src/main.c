@@ -99,12 +99,24 @@ int main(void)
   /* USER CODE BEGIN 2 */
   HAL_TIM_Base_Start_IT(&htim2);
   /* USER CODE END 2 */
+ for (int i = 0; i < 4; i++)
+{
+    HAL_GPIO_WritePin(TL1_A_GPIO_Port, TL1_A_Pin,
+                      (i & 0x02) ? GPIO_PIN_SET : GPIO_PIN_RESET);
+
+    HAL_GPIO_WritePin(TL1_B_GPIO_Port, TL1_B_Pin,
+                      (i & 0x01) ? GPIO_PIN_SET : GPIO_PIN_RESET);
+
+    HAL_Delay(2000);
+}
 
   /* Infinite loop */
   /* USER CODE BEGIN WHILE */
   while (1)
   {
     /* USER CODE END WHILE */
+    HAL_GPIO_TogglePin(LD2_GPIO_Port, LD2_Pin);
+    HAL_Delay(500);
 
     /* USER CODE BEGIN 3 */
   }
