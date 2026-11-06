@@ -22,7 +22,16 @@
 
 /* Private includes ----------------------------------------------------------*/
 /* USER CODE BEGIN Includes */
-
+#include "global.h"
+#include "scheduler.h"
+#include "software_timer.h"
+#include "fsm_automatic.h"
+#include "button.h"
+#include "traffic_light.h"
+#include "fsm_manual.h"
+#include "dht20.h"
+#include "lcd.h"
+#include "fsm_tuning.h"
 /* USER CODE END Includes */
 
 /* Private typedef -----------------------------------------------------------*/
@@ -57,7 +66,17 @@ static void MX_USART2_UART_Init(void);
 static void MX_I2C1_Init(void);
 static void MX_TIM2_Init(void);
 /* USER CODE BEGIN PFP */
+__attribute__((weak)) void button_reading(void) {}
+__attribute__((weak)) void fsm_manual_run(void) {}
+__attribute__((weak)) void fsm_tuning_run(void) {}
+__attribute__((weak)) void dht20_init(void) {}
+__attribute__((weak)) void dht20_read(void) {}
+__attribute__((weak)) void lcd_init(void) {}
+__attribute__((weak)) void lcd_update_display(void) {}
 
+void task_heartbeat_led(void) {
+    HAL_GPIO_TogglePin(GPIOA, GPIO_PIN_5); // Chớp tắt LED PA5 mỗi 500ms
+}
 /* USER CODE END PFP */
 
 /* Private user code ---------------------------------------------------------*/
@@ -98,17 +117,41 @@ int main(void)
   MX_TIM2_Init();
   /* USER CODE BEGIN 2 */
   HAL_TIM_Base_Start_IT(&htim2);
-  /* USER CODE END 2 */
+    SCH_Init();
+    dht20_init();
+    lcd_init();
 
-  /* Infinite loop */
-  /* USER CODE BEGIN WHILE */
-  while (1)
-  {
-    /* USER CODE END WHILE */
+    /* Đăng ký các tác vụ định kỳ vào bộ lập lịch O(1) (Đơn vị: ms) */
+    SCH_Add_Task(button_reading,     0,   10);   // Quét nút nhấn mỗi 10ms
+    SCH_Add_Task(timerRun,           0,   10);   // Cập nhật software timer mỗi 10ms
+    SCH_Add_Task(fsm_automatic_run,  10,  10);   // Chạy FSM Auto mỗi 10ms
+    SCH_Add_Task(fsm_manual_run,     10,  10);   // Chạy FSM Manual mỗi 10ms
+    SCH_Add_Task(fsm_tuning_run,     10,  10);   // Chạy FSM Tuning mỗi 10ms
+    SCH_Add_Task(lcd_update_display, 50,  250);  // Cập nhật màn hình LCD mỗi 250ms
+    SCH_Add_Task(task_heartbeat_led, 0,   500);  // Chớp LED PA5 mỗi 500ms
+    SCH_Add_Task(dht20_read,         100, 2000); // Đọc cảm biến DHT20 mỗi 2 giây
 
-    /* USER CODE BEGIN 3 */
-  }
-  /* USER CODE END 3 */
+    /* Kích hoạt ngắt Timer 2 (10ms) */
+    HAL_TIM_Base_Start_IT(&htim2);
+    /* USER CODE END 2 */
+
+    /* Infinite loop */
+    /* USER CODE BEGIN WHILE */
+    while (1)
+    {
+      SCH_Dispatch_Tasks();
+      /* USER CODE END WHILE */
+
+      /* USER CODE BEGIN 3 */
+    }
+    /* USER CODE END 3 */
+    /* USER CODE BEGIN 4 */
+    void HAL_TIM_PeriodElapsedCallback(TIM_HandleTypeDef *htim) {
+        if (htim->Instance == TIM2) {
+            SCH_Update();
+        }
+    }
+    /* USER CODE END 4 */
 }
 
 /**
